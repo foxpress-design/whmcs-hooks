@@ -1,44 +1,70 @@
 <?php
 
 /**
- * Prevent the client search dropdown from auto-focusing on client detail pages.
+ * Prevent Safari password autofill popup and auto-focus on client search fields.
  *
- * WHMCS auto-focuses the Select2 client search field when loading client pages,
- * which opens a large dropdown that is easy to accidentally click on. This hook
- * blurs the field on page load so the dropdown stays closed until intentionally
- * clicked.
+ * Safari sees the client search input on client detail pages and offers password
+ * autofill (Keychain credentials), covering the page with an unwanted popup.
+ * This hook marks search fields so Safari ignores them, removes autofocus, and
+ * blurs any auto-focused fields on page load.
  */
 
 add_hook('AdminAreaFooterOutput', 1, function ($vars) {
     return <<<'HTML'
 <script>
 (function() {
-    // Close any Select2 dropdowns that auto-opened and blur focused search inputs
-    function dismissAutoFocus() {
-        // Blur any auto-focused Select2 search fields
-        var focused = document.querySelector('.select2-container--open .select2-search__field');
-        if (focused) {
-            focused.blur();
-        }
-        // Close any open Select2 dropdowns
-        var openDropdowns = document.querySelectorAll('.select2-container--open');
-        openDropdowns.forEach(function(el) {
-            var select = el.previousElementSibling;
-            if (select && typeof jQuery !== 'undefined') {
-                jQuery(select).select2('close');
-            }
+    function fixFields() {
+        // Target all text/search inputs that Safari might mistake for login fields
+        var inputs = document.querySelectorAll(
+            'input[type="text"], input[type="search"], .select2-search__field'
+        );
+        inputs.forEach(function(el) {
+            // Tell Safari this is not a login/password field
+            el.setAttribute('autocomplete', 'off');
+            el.setAttribute('data-lpignore', 'true');
+            el.setAttribute('data-1p-ignore', 'true');
         });
-        // Remove autofocus from any inputs on the page
+
+        // Remove autofocus from any elements
         document.querySelectorAll('[autofocus]').forEach(function(el) {
             el.removeAttribute('autofocus');
             el.blur();
         });
+
+        // Blur any currently focused input
+        if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+            document.activeElement.blur();
+        }
+
+        // Close any open Select2 dropdowns
+        if (typeof jQuery !== 'undefined' && jQuery.fn.select2) {
+            jQuery('.select2-container--open').prev('select').select2('close');
+        }
     }
 
-    // Run immediately and after a short delay (Select2 may initialize async)
-    dismissAutoFocus();
-    setTimeout(dismissAutoFocus, 100);
-    setTimeout(dismissAutoFocus, 300);
+    // Run immediately
+    fixFields();
+
+    // Run after DOM ready and after Select2 async init
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', fixFields);
+    }
+    setTimeout(fixFields, 150);
+    setTimeout(fixFields, 500);
+
+    // Intercept Select2 open events to fix the search field inside dropdowns
+    if (typeof jQuery !== 'undefined') {
+        jQuery(document).on('select2:open', function() {
+            setTimeout(function() {
+                var field = document.querySelector('.select2-container--open .select2-search__field');
+                if (field) {
+                    field.setAttribute('autocomplete', 'off');
+                    field.setAttribute('data-lpignore', 'true');
+                    field.setAttribute('data-1p-ignore', 'true');
+                }
+            }, 10);
+        });
+    }
 })();
 </script>
 HTML;
