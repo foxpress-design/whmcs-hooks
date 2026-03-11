@@ -4,13 +4,13 @@ A collection of quality-of-life hooks for the WHMCS admin area. Drop them into y
 
 ## Hooks
 
-### admin_password_autofill_fix.php
+### admin_extend_session.php
 
-Fixes Safari (and some other browsers) treating password fields on admin settings pages as "new password" fields, showing the password generator instead of your saved credentials.
+Extends admin session lifetime to prevent frequent logouts.
 
-**The problem:** Safari sees a password input on a settings page and assumes you're changing your password. It offers to generate a new one instead of autofilling your saved login.
+**The problem:** PHP's default `session.gc_maxlifetime` is often 1440 seconds (24 minutes). Combined with WHMCS's own session handling, this causes frequent logouts and re-authentication prompts, even with "Remember Me" checked.
 
-**The fix:** Sets `autocomplete="current-password"` on all admin password fields so browsers offer the correct autofill behavior.
+**The fix:** Extends the PHP session lifetime and cookie expiry to 24 hours (86400 seconds) on every admin page load, keeping your session alive as long as you're actively using the admin panel.
 
 ### admin_disable_autofocus_search.php
 
@@ -18,7 +18,7 @@ Prevents the Select2 client search dropdown from auto-focusing and opening when 
 
 **The problem:** WHMCS auto-focuses the client search field on client pages, which immediately opens a large dropdown covering the page content. Easy to accidentally click the wrong client.
 
-**The fix:** Removes autofocus attributes, blurs any auto-focused Select2 fields, and closes any auto-opened dropdowns on page load.
+**The fix:** Uses a MutationObserver and Select2 event interception to suppress auto-opening during page load while preserving normal click-to-search behavior.
 
 ## Installation
 
