@@ -32,8 +32,22 @@ add_hook('AdminAreaHeaderOutput', 1, function ($vars) {
             decoy.style.cssText = 'position:absolute;left:-9999px;width:0;height:0;opacity:0;pointer-events:none;';
             pwField.parentNode.insertBefore(decoy, pwField);
 
-            // Mark the password field as current-password
-            pwField.setAttribute('autocomplete', 'current-password');
+            // Use an unrecognized value so Safari stops trying to classify it
+            pwField.setAttribute('autocomplete', 'off');
+            pwField.setAttribute('data-com-onepassword-ignore', 'true');
+            pwField.setAttribute('data-1p-ignore', 'true');
+            pwField.setAttribute('data-lpignore', 'true');
+            // Readonly trick: Safari won't offer suggestions on readonly fields
+            // Remove readonly on focus so the user can still type
+            if (!pwField.dataset.safariFixed) {
+                pwField.dataset.safariFixed = '1';
+                pwField.setAttribute('readonly', '');
+                pwField.addEventListener('click', function() { this.removeAttribute('readonly'); });
+                pwField.addEventListener('focus', function() {
+                    var self = this;
+                    setTimeout(function() { self.removeAttribute('readonly'); }, 50);
+                });
+            }
         });
     }
 
