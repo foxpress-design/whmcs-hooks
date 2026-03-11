@@ -13,13 +13,14 @@ add_hook('AdminAreaFooterOutput', 1, function ($vars) {
     return <<<'HTML'
 <script>
 (function() {
+    var pageLoad = true;
+
     function fixFields() {
-        // Target all text/search inputs that Safari might mistake for login fields
+        // Tell Safari search/text inputs are not login fields
         var inputs = document.querySelectorAll(
             'input[type="text"], input[type="search"], .select2-search__field'
         );
         inputs.forEach(function(el) {
-            // Tell Safari this is not a login/password field
             el.setAttribute('autocomplete', 'off');
             el.setAttribute('data-lpignore', 'true');
             el.setAttribute('data-1p-ignore', 'true');
@@ -28,7 +29,6 @@ add_hook('AdminAreaFooterOutput', 1, function ($vars) {
         // Remove autofocus from any elements
         document.querySelectorAll('[autofocus]').forEach(function(el) {
             el.removeAttribute('autofocus');
-            el.blur();
         });
 
         // Blur any currently focused input
@@ -42,19 +42,19 @@ add_hook('AdminAreaFooterOutput', 1, function ($vars) {
         }
     }
 
-    // Run immediately
-    fixFields();
-
-    // Run after DOM ready and after Select2 async init
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', fixFields);
-    }
-    setTimeout(fixFields, 150);
-    setTimeout(fixFields, 500);
-
-    // Intercept Select2 open events to fix the search field inside dropdowns
+    // Block Select2 from auto-opening on page load by intercepting the open event
     if (typeof jQuery !== 'undefined') {
+        jQuery(document).on('select2:opening', function(e) {
+            if (pageLoad) {
+                e.preventDefault();
+            }
+        });
+
         jQuery(document).on('select2:open', function() {
+            if (pageLoad) {
+                jQuery('.select2-container--open').prev('select').select2('close');
+            }
+            // Always fix autocomplete on opened dropdowns
             setTimeout(function() {
                 var field = document.querySelector('.select2-container--open .select2-search__field');
                 if (field) {
@@ -65,6 +65,18 @@ add_hook('AdminAreaFooterOutput', 1, function ($vars) {
             }, 10);
         });
     }
+
+    // Run fixes immediately and on delays to catch async init
+    fixFields();
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', fixFields);
+    }
+    setTimeout(fixFields, 50);
+    setTimeout(fixFields, 150);
+    setTimeout(fixFields, 500);
+
+    // Allow normal Select2 interaction after page settles
+    setTimeout(function() { pageLoad = false; }, 1500);
 })();
 </script>
 HTML;
